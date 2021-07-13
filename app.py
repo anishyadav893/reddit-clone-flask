@@ -1,12 +1,18 @@
 from flask import *
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from flask_bcrypt import Bcrypt
+
+from helper import salt_password
+from config import DevelopmentConfig
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://baa07011a9ae85:0d6b9c80@us-cdbr-east-04.cleardb.com/heroku_28f4d0761a66b96'
+app.config.from_object(DevelopmentConfig)
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
 
 class User(db.Model):
 	id = db.Column(db.Integer, primary_key = True)
@@ -19,8 +25,25 @@ class User(db.Model):
 def index():
 	return render_template('index.html')
 
-@app.route('/signup')
-def index():
+@app.route('/signup', methods = ['GET', 'POST'])
+def signup():
+	if request.method == "POST":
+		_username = request.form['username']
+		_email = request.form['email']
+		_password = request.form['password']
+
+		salted_pass = salt_password(_password)
+		hashed_pass = bcrypt.generate_password_hash(salted_pass)
+
+		try:
+			new_user = User(username = _username, email = _email, password = hashed_pass)
+			db.session.add(new_user)
+			db.session.commit()
+		except:
+			print('Error encountered while creating account.')
+			return redirect('/')
+		return redirect('/')
+
 	return render_template('auth/reg.html')
 
 if __name__ == '__main__':
